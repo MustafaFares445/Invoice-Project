@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
-//use App\Notifications\AddInvoice;
+use App\Notifications\AddInvoice;
 //use App\Exports\InvoicesExport;
 //use Maatwebsite\Excel\Facades\Excel;
 //use App\Events\MyEventClass;
@@ -40,7 +40,7 @@ class InvoicesController extends Controller
     /**
      * Store a newly created resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param \Illuminate\Http\Request $request
      */
     public function store(Request $request)
     {
@@ -74,8 +74,7 @@ class InvoicesController extends Controller
             'user' => (Auth::user()->name),
         ]);
 
-        if ($request->hasFile('pic'))
-        {
+        if ($request->hasFile('pic')) {
             $invoice_id = Invoices::latest()->first()->id;
             $image = $request->file('pic');
             $file_name = $image->getClientOriginalName();
@@ -94,14 +93,15 @@ class InvoicesController extends Controller
         }
 
 
-           // $user = User::first();
-          // Notification::send($user, new AddInvoice($invoice_id));
+         $user = User::first();
+         Notification::send($user, new AddInvoice($invoice_id));
+        // $user->notify(new AddInvoice($invoice_id));
 
 //        $user = User::get();
 //        $invoices = invoices::latest()->first();
 //        Notification::send($user, new \App\Notifications\Add_invoice_new($invoices));
 //
-       // event(new MyEventClass('hello world'));
+        // event(new MyEventClass('hello world'));
 
         session()->flash('Add', 'تم اضافة الفاتورة بنجاح');
         return back();
@@ -110,7 +110,7 @@ class InvoicesController extends Controller
     /**
      * Display the specified resource.
      *
-     * @param  \App\invoices  $invoices
+     * @param \App\invoices $invoices
      * @return \Illuminate\Http\Response
      */
     public function show($id)
@@ -122,7 +122,7 @@ class InvoicesController extends Controller
     /**
      * Show the form for editing the specified resource.
      *
-     * @param  \App\invoices  $invoices
+     * @param \App\invoices $invoices
      * @return \Illuminate\Http\Response
      */
     public function edit($id)
@@ -135,8 +135,8 @@ class InvoicesController extends Controller
     /**
      * Update the specified resource in storage.
      *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\invoices  $invoices
+     * @param \Illuminate\Http\Request $request
+     * @param \App\invoices $invoices
      * @return \Illuminate\Http\Response
      */
     public function update(Request $request)
@@ -164,9 +164,6 @@ class InvoicesController extends Controller
 
     /**
      * Remove the specified resource from storage.
-     *
-     * @param  \App\invoices  $invoices
-     * @return \Illuminate\Http\Response
      */
     public function destroy(Request $request)
     {
@@ -174,24 +171,21 @@ class InvoicesController extends Controller
         $invoices = invoices::where('id', $id)->first();
         $Details = invoice_attachments::where('invoice_id', $id)->first();
 
-         $id_page =$request->id_page;
+        $id_page = $request->id_page;
 
 
-        if (!$id_page==2) {
+        if (!$id_page == 2) {
 
-        if (!empty($Details->invoice_number)) {
+            if (!empty($Details->invoice_number)) {
 
-            Storage::disk('public_uploads')->deleteDirectory($Details->invoice_number);
-        }
+                Storage::disk('public_uploads')->deleteDirectory($Details->invoice_number);
+            }
 
-        $invoices->forceDelete();
-        session()->flash('delete_invoice');
-        return redirect('/invoices');
+            $invoices->forceDelete();
+            session()->flash('delete_invoice');
+            return redirect('/invoices');
 
-        }
-
-        else {
-
+        } else {
             $invoices->delete();
             session()->flash('archive_invoice');
             return redirect('/Archive');
@@ -199,6 +193,7 @@ class InvoicesController extends Controller
 
 
     }
+
     public function getproducts($id)
     {
         $products = DB::table("products")->where("section_id", $id)->pluck("Product_name", "id");
@@ -229,9 +224,7 @@ class InvoicesController extends Controller
                 'Payment_Date' => $request->Payment_Date,
                 'user' => (Auth::user()->name),
             ]);
-        }
-
-        else {
+        } else {
             $invoices->update([
                 'Value_Status' => 3,
                 'Status' => $request->Status,
@@ -255,70 +248,57 @@ class InvoicesController extends Controller
     }
 
 
-     public function Invoice_Paid()
+    public function Invoice_Paid()
     {
         $invoices = Invoices::where('Value_Status', 1)->get();
-        return view('invoices.invoices_paid',compact('invoices'));
+        return view('invoices.invoices_paid', compact('invoices'));
     }
 
     public function Invoice_unPaid()
     {
-        $invoices = Invoices::where('Value_Status',2)->get();
-        return view('invoices.invoices_unpaid',compact('invoices'));
+        $invoices = Invoices::where('Value_Status', 2)->get();
+        return view('invoices.invoices_unpaid', compact('invoices'));
     }
 
     public function Invoice_Partial()
     {
-        $invoices = Invoices::where('Value_Status',3)->get();
-        return view('invoices.invoices_Partial',compact('invoices'));
+        $invoices = Invoices::where('Value_Status', 3)->get();
+        return view('invoices.invoices_Partial', compact('invoices'));
     }
 
     public function Print_invoice($id)
     {
         $invoices = invoices::where('id', $id)->first();
-        return view('invoices.Print_invoice',compact('invoices'));
+        return view('invoices.Print_invoice', compact('invoices'));
     }
 
     public function export()
     {
-
         return Excel::download(new InvoicesExport, 'invoices.xlsx');
-
     }
 
 
-    public function MarkAsRead_all (Request $request)
+    public function MarkAsRead_all(Request $request)
     {
+        $userUnreadNotification = auth()->user()->unreadNotifications;
 
-        $userUnreadNotification= auth()->user()->unreadNotifications;
-
-        if($userUnreadNotification) {
+        if ($userUnreadNotification) {
             $userUnreadNotification->markAsRead();
             return back();
         }
-
-
     }
 
 
     public function unreadNotifications_count()
-
     {
         return auth()->user()->unreadNotifications->count();
     }
 
     public function unreadNotifications()
-
     {
-        foreach (auth()->user()->unreadNotifications as $notification){
-
-return $notification->data['title'];
-
+        foreach (auth()->user()->unreadNotifications as $notification)
+        {
+            return $notification->data['title'];
         }
-
     }
-
-
-
-
 }
